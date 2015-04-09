@@ -1,0 +1,268 @@
+General Information
+===================
+
+ST Histograms
+-------------
+ST histrograms in 10-GeV binning (0 - 10000 GeV)
+are stored the following structure. 
+
++  plotsNoCut/ST
++  plots2Jets/ST
++  plots3Jets/ST
++  plotsN2/ST
++  plotsN3/ST
++  plotsN3up/ST
++  plotsN4up/ST ...
+
+A script is provided to convert ST histograms produced by SimpleAnalyzer.
+./prepareHistograms.py -i input.root -o output.root
+
+For merging additional data:
+hadd data_updated.root data_old.root data_additional.root
+
+BH Models
+---------
+An example of BH model is labeled as BH1_BM-MD1.5_M3.0_n4.
+BH1 - Model name (Check model_description in configurations.)
+BM - BlackMax Generator, CH - CHARYBDIS
+MD - Planck scale in extra-dimensions (TeV)
+M - min. BH mass (TeV)
+n = number of extra-dimensions
+
+Similary for string ball - SB2_BM-MD1.3_M4.0_Ms1.0_gs0.4.
+Ms = String scale (TeV)
+gs = String coupling
+
+BH Xsec
+-------
+Cross sections for each model are saved under BHScripts/XsecTables.
+There are 3 columns for each text file:
+
+1. min. BH mass (TeV)
+2. xsec (pb)
+3. error given by generator (pb)
+
+Ideally, the table is in 0.1 TeV step to obtain the best looking
+in the xsec limit plots.
+
+
+__Adding New Models__
+
+Convert xsec from text format to root file:
+./makeXsecRoot.py -i BH1_BM-MD1.5_n6
+./makeXsecRoot.py -i SB2_BM-MD1.3_Ms1.0_gs0.4
+... ... ...
+
+Combine all root files:
+hadd -f TheoreticalXsec.root BH*.root SB*.root
+
+
+Configurations
+==============
+Edit configurations.py.
+Set the correct integrated luminosity.
+MOST of plotting styles can be changed by modifying Styles.py.
+
+BH Models
+---------
+ST histrograms, with proper folder structure, are stored separately
+for each model. The root file name __MUST__ be consistence with
+xsec table. All the root files are put in a single directory, which
+can be configured by "bh_dir".
+
+The models to be tested are store in a text file (default: models42X.txt).
+There is only one line per each model, and the model name __MUST__ be
+consistence with xsec table. The list of models can be configured by "bh_list".
+
+Standard Model MC
+-----------------
+SM backgrounds are stored in the directory "sm_dir".
+There are 4 SM backgrouds: "Photon+Jets", "W+Jets", "ttbar", "Z+Jets".
+The histrograms are in the same folder structure as the others,
+EXCEPT they are normalized to 1 pb-1.
+
+
+Generate Backgroud Templates
+============================
+Parametrize background using functions and ranges set in <configurations.py>.
+Options --normalizations and --fit override default settings.
+
+Usages
+------
+./genTemplates.py -i data.root -o Templates.root
+./genTemplates.py -i data.root --normalization=1500 2000 --fit=1000 3000
+
+Output Histograms (Templates.root)
+----------------------------------
+*  Fit functions in TF1
+   +  templateN2_0
+   +  templateN2_1
+*  Fit functions in TH1D
+   +  histoTemplateN2_0
+   +  histoTemplateN2_1
+*  ST histograms for data/background in 100-GeV binning
+   +  Data_N2
+   +  Data_N3up
+   +  Background_N3up
+*  ST histograms for background with error bands
+   +  BackgroundGraph_N3up 
+   +  BackgroundGraph_N4up 
+*  Background Uncertainty
+   +  Shape_Uncertainty - in absolute number 
+   +  Relative_Shape_Uncertainty - in percentage
+*  Number of data/background as a function of STmin in 100-GeV binning
+   +  IntegralData_N2
+   +  IntegralBackground_N3up
+
+
+Plotting ST
+===========
+The BH signals shown in the plots can be configured by "bh_showcase"
+in configurations.py.
+For the exclusive multiplities, SM backgrounds are plotted as well.
+
+Usages
+------
+./plotST.py -i Templates.root -N 2 -x -l "a)"
+./plotST.py -i Templates.root -N 3 -x -l "b)"
+./plotST.py -i Templates.root -N 3 -l "a)"
+./plotST.py -i Templates.root -N 4 -l "b)"
+./plotST.py -i Templates.root -N 5 -l "c)"
+... ... ...
+
+Options
+-------
+-x    exclusive multiplicity
+-l    little label on top right corner.
+
+Input
+-----
+Templates.root produced by genTemplates.py.
+
+
+Model Independent Limits
+========================
+Generate and plot MI for nominal lumi. and signal uncertainties.
+Compare to old limits by specifying MI_old_file.
+
+RooStats
+--------
+Check the twiki to download the lastest roostats_cl95.C.
+https://twiki.cern.ch/twiki/bin/view/CMS/RooStatsCl95
+RooStats doesn't work perfectly with the old ROOT version bundled by CMSSW.
+All the limit calculations are done with standalone ROOT (version 5.30).
+Some simple checks for roostats_cl95.
+
+.L roostats_cl95.C+ 
+roostats_cl95(1000,60,1.0,0.05,15.76, 2.60, 14, kFALSE,1,"bayesian")
+roostats_cla(1000,60,1.0,0.05,15.76, 2.60,1,"bayesian")
+
+Usages
+------
+Calulate CL95/CLA for each (STmin, Nmin).
+Can be submitted to batch or run in parallel.
+./calModelIndepedentLimits.py -i Templates.root -l MI-5-1500.log -N 5 --ST 1500
+./calModelIndepedentLimits.py -i Templates.root -l MI-5-1600.log -N 5 --ST 1600
+./calModelIndepedentLimits.py -i Templates.root -l MI-5-1700.log -N 5 --ST 1700
+./calModelIndepedentLimits.py -i Templates.root -l MI-5-1800.log -N 5 --ST 1800
+... ... ...
+
+Input
+-----
+Templates.root produced by genTemplates.py.
+
+Ouput
+-----
+The log "MI-5-1800.log" contatins 3 columns: STmin:CL95:CLA.
+
+Group all log files by multiplicity cut (Nmin):
+cat MI-3-*.log > MI-3.log
+cat MI-4-*.log > MI-4.log
+cat MI-5-*.log > MI-5.log
+... ... ...
+
+Make the TGraph from log files:
+./makeMIGraph.py -i MI-3.log -o MI-3.root -N 3
+./makeMIGraph.py -i MI-4.log -o MI-4.root -N 4
+./makeMIGraph.py -i MI-5.log -o MI-5.root -N 5
+... ... ...
+
+Combine all MI to a sigle root file:
+hadd MI.root MI-3.root MI-4.root MI-5.root
+
+Plots
+./plotModelIndependentLimits.py -i MI.root
+
+
+Model Xsec Limits
+=================
+Calculate CL95/CLA for a given model using "-m" option. 
+Optimize STmin, Nmin by significance S/sqrt(S+B).
+
+Usage
+-----
+./calModelXsecLimits.py -i Templates.root -o significance.root -l BH1_BM-MD1.5_M5.5_n6.log -m BH1_BM-MD1.5_M5.5_n6
+
+Input
+-----
+Templates.root produced by genTemplates.py.
+
+Output
+-----
+significance.root
+The significance plots as a function of STmin and Nmin.
+
+log
+A text file with 11 columns:
+1. Model name
+2. xsec (pb)
+3. Nmin
+4. STmin (GeV)
+5. Acceptance
+6. Number of signal
+7. Number of observed events
+8. Number of predicted background
+9. Background Error
+10. CL95 (pb)
+11. CLA (pb)
+
+The script is designed to be ran in batch mode.
+The results are groupped to a single text file by "cat *.log > XsecLimits.txt",
+and then converted to ROOT file:
+./makeXsecLimitsRoot.py -i XsecLimits.txt -o XsecLimits.root
+
+The screen print-out gives the min. mass limits (TeV) of each group of models.
+
+
+Plotting Limits
+===============
+Make various limit plots using the model xsec limits (XsecLimits.root).
+
+BH Mass Limits (Fig. 3 of 2010 paper)
+-------------------------------------
+./plotShowcaseModelLimits.py -i XsecLimits.root
+Models to be plotted can be configured by "bh_showcase" in configurations.py.
+
+String Ball Limits
+------------------
+./plotSBLimits.py -i XsecLimits.root
+
+
+Combined Mass Limits (Fig. 4 of 2010 paper)
+------------------------------------------
+./plotCombinedMassLimits.py -i XsecLimits.root
+Groupping can be configured by "summary_list" in configurations.py.
+
+e.g. 
+Summary("BlackMax", "BM", [2,4,6], ["BH1", "BH2"]),
+
+"BlackMax" - Description of the generator.
+"BM" - Abbreviation of the generator. MUST be consistence with model name.
+[2,4,6] - List of extra dimensions in the plot.
+["BH1", "BH2"] - List of BH benchmark models in the plot.
+
+Mass Limits (For AN)
+-------------------
+./plotBHMassLimits.py -i XsecLimits.root -m BH2_CH
+Speicify benchmark model by "-m".
+List of parameters - "extraDim_list" and "MD_list" - are scanned automatically.
