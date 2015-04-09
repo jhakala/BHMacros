@@ -1,0 +1,8 @@
+untracked/
+latex/
+*.pdf
+*_C.d
+*_C.so
+*.pyc
+.DS_Store
+*.swp
